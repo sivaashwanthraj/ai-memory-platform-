@@ -1,17 +1,33 @@
+import os
 import chromadb
 from typing import List, Dict, Any, Optional
 
 from app.config import settings
 
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
 
 class VectorService:
-    def __init__(self):
-        # Store Chroma data locally in backend/chroma_db
-        self.client = chromadb.PersistentClient(path="./chroma_db")
+    _instance = None
+    _client = None
+    _collection = None
 
-        self.collection = self.client.get_or_create_collection(
-            name=settings.CHROMA_COLLECTION
-        )
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(VectorService, cls).__new__(cls)
+            cls._client = chromadb.PersistentClient(path="./chroma_db")
+            cls._collection = cls._client.get_or_create_collection(
+                name=settings.CHROMA_COLLECTION
+            )
+        return cls._instance
+
+    @property
+    def client(self):
+        return self._client
+
+    @property
+    def collection(self):
+        return self._collection
 
     async def add_memory(
         self,
