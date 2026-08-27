@@ -54,6 +54,11 @@ app = FastAPI(
 #
 # ============================================================
 
+import os
+
+os.makedirs("uploads/memories", exist_ok=True)
+os.makedirs("chroma_db", exist_ok=True)
+
 app.mount(
     "/uploads",
     StaticFiles(directory="uploads"),
