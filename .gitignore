@@ -1,0 +1,34 @@
+# Virtual Environment & Tools
+.venv/
+env/
+venv/
+ENV/
+git/
+*.zip
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment
+.env
+
+# Vector DB & Uploads
+chroma_db/
+backend/chroma_db/
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Logs
+*.log
+install_log.txt
+backend/error.txt

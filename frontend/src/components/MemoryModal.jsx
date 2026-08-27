@@ -1,0 +1,329 @@
+import { useEffect, useState } from "react";
+
+
+export default function MemoryModal({
+  isOpen,
+  onClose,
+  onSave,
+  editingMemory,
+}) {
+
+  const [content, setContent] = useState("");
+  const [photo, setPhoto] = useState(null);
+  const [photoName, setPhotoName] = useState("");
+
+
+  // =========================================================
+  // LOAD EDITING MEMORY
+  // =========================================================
+
+  useEffect(() => {
+
+    if (editingMemory) {
+
+      setContent(
+        editingMemory.content || ""
+      );
+
+      setPhoto(null);
+
+      setPhotoName(
+        editingMemory.image_name || ""
+      );
+
+    } else {
+
+      setContent("");
+
+      setPhoto(null);
+
+      setPhotoName("");
+
+    }
+
+  }, [editingMemory, isOpen]);
+
+
+  if (!isOpen) {
+    return null;
+  }
+
+
+  // =========================================================
+  // SELECT PHOTO
+  // =========================================================
+
+  function handlePhotoChange(e) {
+
+    const selectedFile =
+      e.target.files?.[0] || null;
+
+    setPhoto(selectedFile);
+
+    console.log(
+      "Selected photo:",
+      selectedFile
+    );
+  }
+
+
+  // =========================================================
+  // SUBMIT
+  // =========================================================
+
+  function handleSubmit(e) {
+
+    e.preventDefault();
+
+
+    // -------------------------------------------------------
+    // TEXT MEMORY
+    // -------------------------------------------------------
+
+    if (
+      !content.trim() &&
+      !photo &&
+      !editingMemory?.image_url
+    ) {
+
+      alert(
+        "Please enter a memory or select a photo."
+      );
+
+      return;
+    }
+
+
+    // -------------------------------------------------------
+    // PHOTO NAME
+    // -------------------------------------------------------
+
+    if (
+      photo &&
+      !photoName.trim()
+    ) {
+
+      alert(
+        "Please enter a photo name."
+      );
+
+      return;
+    }
+
+
+    console.log(
+      "Saving memory..."
+    );
+
+    console.log(
+      "Content:",
+      content
+    );
+
+    console.log(
+      "Photo:",
+      photo
+    );
+
+    console.log(
+      "Photo name:",
+      photoName
+    );
+
+
+    // -------------------------------------------------------
+    // SEND TO DASHBOARD
+    // -------------------------------------------------------
+
+    onSave(
+      content.trim(),
+      photo,
+      photoName.trim()
+    );
+
+
+    // -------------------------------------------------------
+    // RESET
+    // -------------------------------------------------------
+
+    setContent("");
+    setPhoto(null);
+    setPhotoName("");
+  }
+
+
+  // =========================================================
+  // CANCEL
+  // =========================================================
+
+  function handleClose() {
+
+    setContent("");
+    setPhoto(null);
+    setPhotoName("");
+
+    onClose();
+  }
+
+
+  // =========================================================
+  // UI
+  // =========================================================
+
+  return (
+
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+
+
+      <div className="bg-slate-900 rounded-xl shadow-2xl w-full max-w-lg p-6">
+
+
+        {/* =================================================
+            TITLE
+        ================================================= */}
+
+        <h2 className="text-2xl font-bold text-cyan-400 mb-6">
+
+          {editingMemory
+            ? "Edit Memory"
+            : "Add Memory"}
+
+        </h2>
+
+
+        <form onSubmit={handleSubmit}>
+
+
+          {/* =================================================
+              MEMORY TEXT
+          ================================================= */}
+
+          <label className="block text-white mb-2">
+
+            Memory
+
+          </label>
+
+
+          <textarea
+            rows={6}
+            placeholder="Write your memory..."
+            value={content}
+            onChange={(e) =>
+              setContent(e.target.value)
+            }
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-4 text-white resize-none focus:outline-none focus:border-cyan-500"
+          />
+
+
+          {/* =================================================
+              PHOTO
+          ================================================= */}
+
+          {!editingMemory && (
+
+            <>
+
+              <label className="block text-white mt-5 mb-2">
+
+                📷 Photo
+
+              </label>
+
+
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                onChange={handlePhotoChange}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white"
+              />
+
+
+              {/* SELECTED FILE */}
+
+              {photo && (
+
+                <div className="mt-2">
+
+                  <p className="text-green-400 text-sm">
+
+                    ✓ Selected:
+                    {" "}
+                    {photo.name}
+
+                  </p>
+
+                </div>
+
+              )}
+
+
+              {/* =================================================
+                  PHOTO NAME
+              ================================================= */}
+
+              <label className="block text-white mt-5 mb-2">
+
+                Photo Name
+
+              </label>
+
+
+              <input
+                type="text"
+                placeholder="Example: Prithiv"
+                value={photoName}
+                onChange={(e) =>
+                  setPhotoName(e.target.value)
+                }
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-cyan-500"
+              />
+
+            </>
+
+          )}
+
+
+          {/* =================================================
+              BUTTONS
+          ================================================= */}
+
+          <div className="flex justify-end gap-3 mt-6">
+
+
+            {/* CANCEL */}
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white"
+            >
+              Cancel
+            </button>
+
+
+            {/* SAVE */}
+
+            <button
+              type="submit"
+              className="px-5 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white font-semibold"
+            >
+
+              {editingMemory
+                ? "Update"
+                : "Save"}
+
+            </button>
+
+
+          </div>
+
+
+        </form>
+
+
+      </div>
+
+    </div>
+  );
+}
