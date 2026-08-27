@@ -2,7 +2,7 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { AuthContext } from "../context/AuthContext";
-import { login as loginUser } from "../services/authService";
+import { login as loginUser, getCurrentUser } from "../services/authService";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -89,43 +89,8 @@ export default function Login() {
       // Get current logged-in user
       // -----------------------------------------------------
 
-      const userResponse =
-        await fetch(
-          "http://127.0.0.1:8000/api/auth/me",
-          {
-            method: "GET",
-
-            headers: {
-              Authorization:
-                `Bearer ${response.access_token}`,
-
-              "Content-Type":
-                "application/json",
-            },
-          }
-        );
-
-      console.log(
-        "CURRENT USER STATUS:",
-        userResponse.status
-      );
-
-      // -----------------------------------------------------
-      // Check current user response
-      // -----------------------------------------------------
-
-      if (!userResponse.ok) {
-        throw new Error(
-          "Unable to get current user."
-        );
-      }
-
-      // -----------------------------------------------------
-      // Convert response to JSON
-      // -----------------------------------------------------
-
-      const userData =
-        await userResponse.json();
+      const userResponse = await getCurrentUser();
+      const userData = userResponse.data;
 
       console.log(
         "CURRENT USER:",
