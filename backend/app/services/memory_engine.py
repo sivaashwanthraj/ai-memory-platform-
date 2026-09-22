@@ -109,16 +109,16 @@ class MemoryEngine:
             "STEP 3 - Adding to vector database"
         )
 
-        await self.vector_service.add_memory(
-            vector_id=vector_id,
-            embedding=embedding,
-            content=searchable_content,
-            user_id=user_id,
-        )
-
-        print(
-            "STEP 4 - Added to vector database"
-        )
+        try:
+            await self.vector_service.add_memory(
+                vector_id=vector_id,
+                embedding=embedding,
+                content=searchable_content,
+                user_id=user_id,
+            )
+            print("STEP 4 - Added to vector database")
+        except Exception as e:
+            print("Vector DB warning (continuing to PostgreSQL):", repr(e))
 
         # -----------------------------------------------------
         # Create PostgreSQL memory
