@@ -14,7 +14,7 @@ import { sendMessage } from "../services/chatbotService";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL
   ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")
-  : "";
+  : "https://ai-memory-backend-8319.onrender.com";
 
 
 // ============================================================

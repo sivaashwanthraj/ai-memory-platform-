@@ -12,7 +12,9 @@ import axios from "axios";
 
 const api = axios.create({
 
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ||
+    "https://ai-memory-backend-8319.onrender.com/api",
 
   // IMPORTANT:
   // DO NOT set Content-Type here.
