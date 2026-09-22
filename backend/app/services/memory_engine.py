@@ -27,6 +27,7 @@ class MemoryEngine:
         image_url: Optional[str] = None,
         image_name: Optional[str] = None,
         image_data: Optional[str] = None,
+        searchable_text: Optional[str] = None,
     ):
 
         print("=" * 60)
@@ -40,11 +41,14 @@ class MemoryEngine:
         # Create searchable content
         # -----------------------------------------------------
 
-        searchable_content = (
-            content.strip()
-            if content
-            else ""
-        )
+        if searchable_text and searchable_text.strip():
+            searchable_content = searchable_text.strip()
+        else:
+            searchable_content = (
+                content.strip()
+                if content
+                else ""
+            )
 
         # Add image name to searchable text
         if image_name:

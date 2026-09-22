@@ -155,6 +155,7 @@ async def create_memory(
 
     image_url = None
     image_data = None
+    searchable_text = None
 
     # ========================================================
     # HANDLE IMAGE
@@ -251,12 +252,11 @@ async def create_memory(
             except Exception as e:
                 print("PDF text extraction error:", repr(e))
 
-            # Enrich memory content with extracted PDF text
+            # Keep memory content clean, do not dump raw words into user card!
             doc_label = image_name.strip() if image_name.strip() else Path(original_filename).stem
             if not content.strip():
-                content = f"PDF Document: {doc_label}\n\n{extracted_pdf_text[:3500]}"
-            elif extracted_pdf_text:
-                content = f"{content}\n\n[PDF Document Content]:\n{extracted_pdf_text[:3500]}"
+                content = doc_label
+            searchable_text = f"{doc_label}\n{content}\n{extracted_pdf_text[:4000]}"
 
         else:
             try:
@@ -330,6 +330,7 @@ async def create_memory(
             else None
         ),
         image_data=image_data,
+        searchable_text=searchable_text,
     )
 
     print("=" * 60)
