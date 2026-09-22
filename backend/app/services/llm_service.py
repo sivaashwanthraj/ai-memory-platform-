@@ -21,32 +21,37 @@ class LLMService:
 
         # 1. Check if Groq Cloud API is configured (Free & Fast for 24/7 cloud)
         if settings.GROQ_API_KEY or settings.LLM_PROVIDER == "groq":
-            try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    res = await client.post(
-                        "https://api.groq.com/openai/v1/chat/completions",
-                        headers={
-                            "Authorization": f"Bearer {settings.GROQ_API_KEY}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "model": "qwen/qwen3.8-27b",
-                            "messages": [
-                                {"role": "system", "content": system_instruction},
-                                {"role": "user", "content": prompt},
-                            ],
-                            "temperature": 0.2,
-                        },
-                    )
-                    data = res.json()
-                    if res.status_code != 200:
-                        err_msg = data.get("error", {}).get("message", res.text)
-                        return f"Groq API Error ({res.status_code}): {err_msg}"
-                    if "choices" in data and len(data["choices"]) > 0:
-                        return data["choices"][0]["message"]["content"]
-                    return "No response generated from LLM."
-            except Exception as e:
-                return f"Groq LLM Error: {str(e)}"
+            groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]
+            last_err = None
+
+            for model_name in groq_models:
+                try:
+                    async with httpx.AsyncClient(timeout=25.0) as client:
+                        res = await client.post(
+                            "https://api.groq.com/openai/v1/chat/completions",
+                            headers={
+                                "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+                                "Content-Type": "application/json",
+                            },
+                            json={
+                                "model": model_name,
+                                "messages": [
+                                    {"role": "system", "content": system_instruction},
+                                    {"role": "user", "content": prompt},
+                                ],
+                                "max_tokens": 400,
+                                "temperature": 0.2,
+                            },
+                        )
+                        data = res.json()
+                        if res.status_code == 200 and "choices" in data and len(data["choices"]) > 0:
+                            return data["choices"][0]["message"]["content"]
+                        
+                        last_err = data.get("error", {}).get("message", res.text)
+                except Exception as e:
+                    last_err = str(e)
+
+            return f"Groq AI Error: {last_err}"
 
         # 2. Check if OpenAI Cloud API is configured
         if settings.OPENAI_API_KEY or settings.LLM_PROVIDER == "openai":
