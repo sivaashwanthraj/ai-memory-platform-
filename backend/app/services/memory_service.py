@@ -23,6 +23,7 @@ class MemoryService:
         user_id: int,
         image_url: str | None = None,
         image_name: str | None = None,
+        image_data: str | None = None,
     ) -> Memory:
 
         memories = await self.engine.add_memories(
@@ -30,6 +31,7 @@ class MemoryService:
             user_id=user_id,
             image_url=image_url,
             image_name=image_name,
+            image_data=image_data,
         )
 
         if not memories:

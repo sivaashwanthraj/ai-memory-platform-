@@ -65,10 +65,11 @@ export default function Chatbot() {
     }
 
 
-    // If backend already gives full URL
+    // If backend already gives full URL or data URI
     if (
       imageUrl.startsWith("http://") ||
-      imageUrl.startsWith("https://")
+      imageUrl.startsWith("https://") ||
+      imageUrl.startsWith("data:image/")
     ) {
 
       return imageUrl;
@@ -104,11 +105,18 @@ export default function Chatbot() {
       fullUrl
     );
 
-    window.open(
-      fullUrl,
-      "_blank",
-      "noopener,noreferrer"
-    );
+    if (fullUrl.startsWith("data:image/")) {
+      const win = window.open();
+      if (win) {
+        win.document.write(`<title>Memory Photo</title><body style="margin:0;background:#0b0f19;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${fullUrl}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);" /></body>`);
+      }
+    } else {
+      window.open(
+        fullUrl,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    }
 
   };
 

@@ -196,7 +196,9 @@ reply exactly:
 "I don't know because it isn't in my memory."
 
 If the user asks about a photo or image,
-use the matching memory and image name when available.
+confirm and describe the photo using the memory and image name.
+Do NOT print raw image URLs or file paths in your text reply,
+because the application UI displays the photo card automatically.
 
 -------------------------
 USER MEMORIES

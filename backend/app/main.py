@@ -1,12 +1,17 @@
+import os
+import base64
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, Response
+from sqlalchemy import select
 
 from app.config import settings
 from app.api import auth, memories, chatbot
-from app.database import engine, Base
+from app.database import engine, Base, AsyncSessionLocal
+from app.models.memory import Memory
 
 
 # ============================================================
@@ -54,10 +59,45 @@ app = FastAPI(
 #
 # ============================================================
 
-import os
-
 os.makedirs("uploads/memories", exist_ok=True)
 os.makedirs("chroma_db", exist_ok=True)
+
+
+@app.get("/uploads/memories/{filename}")
+async def serve_memory_image_by_filename(filename: str):
+    """
+    Serve uploaded images:
+    1. If file exists on disk, serve directly via FileResponse.
+    2. If file was deleted by Render restart, load permanently from Neon DB!
+    """
+    file_path = os.path.join("uploads", "memories", filename)
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+
+    try:
+        async with AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(Memory).where(Memory.image_url.like(f"%{filename}%"))
+            )
+            memory = result.scalars().first()
+            if memory and memory.image_data:
+                header, b64_content = memory.image_data.split(",", 1)
+                media_type = header.split(";")[0].replace("data:", "")
+                image_bytes = base64.b64decode(b64_content)
+                return Response(
+                    content=image_bytes,
+                    media_type=media_type,
+                    headers={"Cache-Control": "public, max-age=31536000"},
+                )
+    except Exception as e:
+        print("Error serving image from DB fallback:", repr(e))
+
+    return Response(
+        content='{"detail":"Not Found"}',
+        status_code=404,
+        media_type="application/json",
+    )
+
 
 app.mount(
     "/uploads",

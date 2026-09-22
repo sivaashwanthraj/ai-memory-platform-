@@ -10,7 +10,12 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Response,
 )
+from fastapi.responses import FileResponse
+import base64
+import io
+import os
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -149,6 +154,7 @@ async def create_memory(
     # ========================================================
 
     image_url = None
+    image_data = None
 
     # ========================================================
     # HANDLE IMAGE
@@ -184,8 +190,6 @@ async def create_memory(
 
         # ----------------------------------------------------
         # Upload directory
-        #
-        # D:\AI-Memory-Platform\backend\uploads\memories
         # ----------------------------------------------------
 
         upload_directory = Path(
@@ -197,17 +201,9 @@ async def create_memory(
             exist_ok=True,
         )
 
-        # ----------------------------------------------------
-        # Original filename
-        # ----------------------------------------------------
-
         original_filename = (
             image.filename or ""
         )
-
-        # ----------------------------------------------------
-        # Get extension
-        # ----------------------------------------------------
 
         extension = Path(
             original_filename
@@ -216,17 +212,9 @@ async def create_memory(
         if not extension:
             extension = ".jpg"
 
-        # ----------------------------------------------------
-        # Generate unique filename
-        # ----------------------------------------------------
-
         unique_filename = (
             f"{uuid.uuid4()}{extension}"
         )
-
-        # ----------------------------------------------------
-        # Complete physical file path
-        # ----------------------------------------------------
 
         file_path = (
             upload_directory
@@ -234,55 +222,57 @@ async def create_memory(
         )
 
         # ----------------------------------------------------
-        # Save image
+        # Read and process image for persistent cloud storage
+        # ----------------------------------------------------
+
+        image_bytes = await image.read()
+
+        try:
+            from PIL import Image
+
+            img = Image.open(io.BytesIO(image_bytes))
+            save_format = "PNG" if img.mode in ("RGBA", "P") else "JPEG"
+            if save_format == "JPEG" and img.mode != "RGB":
+                img = img.convert("RGB")
+
+            # Max dimension 1920 to keep size small (~150-300kb)
+            img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+
+            buf = io.BytesIO()
+            if save_format == "JPEG":
+                img.save(buf, format="JPEG", quality=85, optimize=True)
+                mime_type = "image/jpeg"
+            else:
+                img.save(buf, format="PNG", optimize=True)
+                mime_type = "image/png"
+
+            proc_bytes = buf.getvalue()
+            b64_str = base64.b64encode(proc_bytes).decode("utf-8")
+            image_data = f"data:{mime_type};base64,{b64_str}"
+
+        except Exception as e:
+            print("Pillow processing error, fallback to raw bytes:", repr(e))
+            proc_bytes = image_bytes
+            mime_type = image.content_type or "image/jpeg"
+            b64_str = base64.b64encode(image_bytes).decode("utf-8")
+            image_data = f"data:{mime_type};base64,{b64_str}"
+
+        # ----------------------------------------------------
+        # Cache file locally on disk
         # ----------------------------------------------------
 
         try:
-
-            with open(
-                file_path,
-                "wb",
-            ) as buffer:
-
-                while True:
-
-                    chunk = await image.read(
-                        1024 * 1024
-                    )
-
-                    if not chunk:
-                        break
-
-                    buffer.write(chunk)
-
+            with open(file_path, "wb") as buffer:
+                buffer.write(proc_bytes)
         except Exception as e:
-
-            print(
-                "IMAGE SAVE ERROR:",
-                repr(e)
-            )
-
-            raise HTTPException(
-                status_code=500,
-                detail="Could not save image.",
-            )
-
-        # ----------------------------------------------------
-        # URL stored in database
-        # ----------------------------------------------------
+            print("Local cache write error (continuing with DB storage):", repr(e))
 
         image_url = (
             f"/uploads/memories/"
             f"{unique_filename}"
         )
 
-        # ----------------------------------------------------
-        # If photo name is empty,
-        # use filename without extension
-        # ----------------------------------------------------
-
         if not image_name.strip():
-
             image_name = Path(
                 original_filename
             ).stem
@@ -290,6 +280,7 @@ async def create_memory(
         print("IMAGE SAVED:", file_path)
         print("IMAGE URL:", image_url)
         print("IMAGE NAME:", image_name)
+        print("IMAGE DATA LENGTH:", len(image_data) if image_data else 0)
 
     # ========================================================
     # CREATE MEMORY USING MEMORY SERVICE
@@ -306,6 +297,7 @@ async def create_memory(
             if image_name.strip()
             else None
         ),
+        image_data=image_data,
     )
 
     print("=" * 60)
@@ -460,3 +452,53 @@ async def delete_memory(
     )
 
     return None
+
+
+# ============================================================
+# GET MEMORY IMAGE
+# ============================================================
+
+@router.get(
+    "/{memory_id}/image",
+)
+async def get_memory_image(
+    memory_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(MemoryModel).where(MemoryModel.id == memory_id)
+    )
+    memory = result.scalar_one_or_none()
+
+    if not memory:
+        raise HTTPException(
+            status_code=404,
+            detail="Memory not found",
+        )
+
+    # 1. First priority: load from database base64 (permanent, survives all server restarts)
+    if memory.image_data:
+        try:
+            header, b64_content = memory.image_data.split(",", 1)
+            media_type = header.split(";")[0].replace("data:", "")
+            image_bytes = base64.b64decode(b64_content)
+            return Response(
+                content=image_bytes,
+                media_type=media_type,
+                headers={
+                    "Cache-Control": "public, max-age=31536000",
+                },
+            )
+        except Exception as e:
+            print("Error decoding image_data:", repr(e))
+
+    # 2. Second priority: load from local disk if present
+    if memory.image_url:
+        disk_path = memory.image_url.lstrip("/")
+        if os.path.exists(disk_path):
+            return FileResponse(disk_path)
+
+    raise HTTPException(
+        status_code=404,
+        detail="Image file not found.",
+    )

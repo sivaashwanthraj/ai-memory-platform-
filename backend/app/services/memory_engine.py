@@ -26,6 +26,7 @@ class MemoryEngine:
         user_id: int,
         image_url: Optional[str] = None,
         image_name: Optional[str] = None,
+        image_data: Optional[str] = None,
     ):
 
         print("=" * 60)
@@ -129,6 +130,7 @@ class MemoryEngine:
             vector_id=vector_id,
             image_url=image_url,
             image_name=image_name,
+            image_data=image_data,
         )
 
         self.db.add(memory)

@@ -41,6 +41,11 @@ class Memory(Base):
         nullable=True
     )
 
+    image_data = Column(
+        Text,
+        nullable=True
+    )
+
     # =========================
     # TIMESTAMPS
     # =========================
