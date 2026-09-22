@@ -184,21 +184,18 @@ class ChatbotService:
         prompt = f"""
 You are an intelligent AI Memory Assistant.
 
-You have access to the user's saved memories.
+You have access to the user's saved memories, which include text memories, photos, letters, logos, and documents.
 
-Use ONLY the memories below to answer the user's question.
+If the user asks for a saved photo, image, logo, or document that is listed in the memories below:
+Respond politely and confirm you are providing it (for example: "Here is your {image_name or 'photo'}:").
 
-Do not invent information.
+If the question is about general information:
+Use the memories below to answer.
 
-If the answer is not present in the memories,
-reply exactly:
-
+Only if there is truly NO matching memory or photo at all, reply:
 "I don't know because it isn't in my memory."
 
-If the user asks about a photo or image,
-confirm and describe the photo using the memory and image name.
-Do NOT print raw image URLs or file paths in your text reply,
-because the application UI displays the photo card automatically.
+Do NOT print raw image URLs or file paths in your text reply, because the application UI displays the photo card automatically.
 
 -------------------------
 USER MEMORIES
@@ -224,6 +221,20 @@ ANSWER
         answer = await self.llm_service.generate(
             prompt
         )
+
+        # Safeguard: If a matching image was found and returned,
+        # but the LLM claimed it doesn't know, provide a polite response!
+        if image_url:
+            answer_lower = answer.lower().strip()
+            if (
+                "i don't know" in answer_lower
+                or "isn't in my memory" in answer_lower
+                or "not in my memory" in answer_lower
+                or "cannot provide" in answer_lower
+                or "no memory" in answer_lower
+            ):
+                display_name = image_name if image_name else "photo"
+                answer = f"Here is your {display_name}:"
 
         print(
             "AI ANSWER:",
