@@ -168,7 +168,7 @@ async def create_memory(
         print("CONTENT TYPE:", image.content_type)
 
         # ----------------------------------------------------
-        # Allowed image types
+        # Allowed file types (Images + PDF Documents)
         # ----------------------------------------------------
 
         allowed_types = {
@@ -176,6 +176,7 @@ async def create_memory(
             "image/jpg",
             "image/png",
             "image/webp",
+            "application/pdf",
         }
 
         if image.content_type not in allowed_types:
@@ -183,8 +184,8 @@ async def create_memory(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    "Only JPG, JPEG, PNG "
-                    "and WEBP images are allowed."
+                    "Only JPG, JPEG, PNG, WEBP images "
+                    "and PDF documents are allowed."
                 ),
             )
 
@@ -210,7 +211,7 @@ async def create_memory(
         ).suffix.lower()
 
         if not extension:
-            extension = ".jpg"
+            extension = ".pdf" if image.content_type == "application/pdf" else ".jpg"
 
         unique_filename = (
             f"{uuid.uuid4()}{extension}"
@@ -222,40 +223,71 @@ async def create_memory(
         )
 
         # ----------------------------------------------------
-        # Read and process image for persistent cloud storage
+        # Read and process file for persistent cloud storage
         # ----------------------------------------------------
 
         image_bytes = await image.read()
+        is_pdf = (extension == ".pdf" or image.content_type == "application/pdf")
 
-        try:
-            from PIL import Image
-
-            img = Image.open(io.BytesIO(image_bytes))
-            save_format = "PNG" if img.mode in ("RGBA", "P") else "JPEG"
-            if save_format == "JPEG" and img.mode != "RGB":
-                img = img.convert("RGB")
-
-            # Max dimension 1920 to keep size small (~150-300kb)
-            img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
-
-            buf = io.BytesIO()
-            if save_format == "JPEG":
-                img.save(buf, format="JPEG", quality=85, optimize=True)
-                mime_type = "image/jpeg"
-            else:
-                img.save(buf, format="PNG", optimize=True)
-                mime_type = "image/png"
-
-            proc_bytes = buf.getvalue()
-            b64_str = base64.b64encode(proc_bytes).decode("utf-8")
-            image_data = f"data:{mime_type};base64,{b64_str}"
-
-        except Exception as e:
-            print("Pillow processing error, fallback to raw bytes:", repr(e))
+        if is_pdf:
             proc_bytes = image_bytes
-            mime_type = image.content_type or "image/jpeg"
+            mime_type = "application/pdf"
             b64_str = base64.b64encode(image_bytes).decode("utf-8")
-            image_data = f"data:{mime_type};base64,{b64_str}"
+            image_data = f"data:application/pdf;base64,{b64_str}"
+
+            # Extract text from PDF with pypdf
+            extracted_pdf_text = ""
+            try:
+                import pypdf
+
+                pdf_reader = pypdf.PdfReader(io.BytesIO(image_bytes))
+                pdf_text_parts = []
+                for page in pdf_reader.pages:
+                    text_extracted = page.extract_text()
+                    if text_extracted:
+                        pdf_text_parts.append(text_extracted.strip())
+                extracted_pdf_text = "\n".join(pdf_text_parts).strip()
+                print(f"Extracted {len(extracted_pdf_text)} characters from PDF")
+            except Exception as e:
+                print("PDF text extraction error:", repr(e))
+
+            # Enrich memory content with extracted PDF text
+            doc_label = image_name.strip() if image_name.strip() else Path(original_filename).stem
+            if not content.strip():
+                content = f"PDF Document: {doc_label}\n\n{extracted_pdf_text[:3500]}"
+            elif extracted_pdf_text:
+                content = f"{content}\n\n[PDF Document Content]:\n{extracted_pdf_text[:3500]}"
+
+        else:
+            try:
+                from PIL import Image
+
+                img = Image.open(io.BytesIO(image_bytes))
+                save_format = "PNG" if img.mode in ("RGBA", "P") else "JPEG"
+                if save_format == "JPEG" and img.mode != "RGB":
+                    img = img.convert("RGB")
+
+                # Max dimension 1920 to keep size small (~150-300kb)
+                img.thumbnail((1920, 1920), Image.Resampling.LANCZOS)
+
+                buf = io.BytesIO()
+                if save_format == "JPEG":
+                    img.save(buf, format="JPEG", quality=85, optimize=True)
+                    mime_type = "image/jpeg"
+                else:
+                    img.save(buf, format="PNG", optimize=True)
+                    mime_type = "image/png"
+
+                proc_bytes = buf.getvalue()
+                b64_str = base64.b64encode(proc_bytes).decode("utf-8")
+                image_data = f"data:{mime_type};base64,{b64_str}"
+
+            except Exception as e:
+                print("Pillow processing error, fallback to raw bytes:", repr(e))
+                proc_bytes = image_bytes
+                mime_type = image.content_type or "image/jpeg"
+                b64_str = base64.b64encode(image_bytes).decode("utf-8")
+                image_data = f"data:{mime_type};base64,{b64_str}"
 
         # ----------------------------------------------------
         # Cache file locally on disk
@@ -482,12 +514,16 @@ async def get_memory_image(
             header, b64_content = memory.image_data.split(",", 1)
             media_type = header.split(";")[0].replace("data:", "")
             image_bytes = base64.b64decode(b64_content)
+            resp_headers = {
+                "Cache-Control": "public, max-age=31536000",
+            }
+            if media_type == "application/pdf":
+                safe_name = (memory.image_name or "document").replace('"', '') + ".pdf"
+                resp_headers["Content-Disposition"] = f'inline; filename="{safe_name}"'
             return Response(
                 content=image_bytes,
                 media_type=media_type,
-                headers={
-                    "Cache-Control": "public, max-age=31536000",
-                },
+                headers=resp_headers,
             )
         except Exception as e:
             print("Error decoding image_data:", repr(e))

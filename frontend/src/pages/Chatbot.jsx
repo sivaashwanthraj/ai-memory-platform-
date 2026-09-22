@@ -101,22 +101,40 @@ export default function Chatbot() {
     }
 
     console.log(
-      "OPENING IMAGE:",
+      "OPENING FILE:",
       fullUrl
     );
+
+    if (fullUrl.startsWith("data:application/pdf")) {
+      try {
+        const byteCharacters = atob(fullUrl.split(',')[1]);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank", "noopener,noreferrer");
+        return;
+      } catch (e) {
+        console.error("Error opening base64 PDF:", e);
+      }
+    }
 
     if (fullUrl.startsWith("data:image/")) {
       const win = window.open();
       if (win) {
         win.document.write(`<title>Memory Photo</title><body style="margin:0;background:#0b0f19;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${fullUrl}" style="max-width:95vw;max-height:95vh;object-fit:contain;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);" /></body>`);
       }
-    } else {
-      window.open(
-        fullUrl,
-        "_blank",
-        "noopener,noreferrer"
-      );
+      return;
     }
+
+    window.open(
+      fullUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
 
   };
 
@@ -554,161 +572,134 @@ export default function Chatbot() {
 
                       <div className="mt-5">
 
-
                         {/* --------------------------------------------- */}
-                        {/* IMAGE NAME */}
+                        {/* CONDITIONAL: PDF vs IMAGE */}
                         {/* --------------------------------------------- */}
 
-                        {message.image_name && (
+                        {(message.image_url.toLowerCase().endsWith(".pdf") || message.image_url.includes("application/pdf")) ? (
 
                           <div
-                            className="
-                              flex
-                              items-center
-                              gap-2
-                              text-cyan-300
-                              font-semibold
-                              mb-3
-                            "
+                            onClick={() => openImage(message.image_url)}
+                            className="flex items-center gap-4 bg-gradient-to-r from-red-950/60 via-slate-800 to-slate-900 border border-red-700/60 hover:border-red-500 rounded-xl p-4 cursor-pointer transition-all duration-200 hover:shadow-xl hover:shadow-red-500/10 max-w-md group"
                           >
-
-                            <span className="text-xl">
-
-                              🖼️
-
-                            </span>
-
-                            <span>
-
-                              {message.image_name}
-
-                            </span>
-
+                            <div className="w-12 h-12 rounded-lg bg-red-600/20 border border-red-500/40 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                              📄
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-semibold truncate text-sm">
+                                {message.image_name || "Attached Document"}
+                              </p>
+                              <span className="text-xs text-red-400 font-medium inline-flex items-center gap-1 mt-1">
+                                PDF Document • Click to View & Download
+                              </span>
+                            </div>
+                            <div className="px-3 py-1.5 rounded-lg bg-red-600/30 text-red-300 text-xs font-semibold group-hover:bg-red-500 group-hover:text-white transition-colors">
+                              Open ↗
+                            </div>
                           </div>
 
-                        )}
+                        ) : (
 
+                          <>
 
-                        {/* --------------------------------------------- */}
-                        {/* IMAGE CONTAINER */}
-                        {/* --------------------------------------------- */}
+                            {/* --------------------------------------------- */}
+                            {/* IMAGE NAME */}
+                            {/* --------------------------------------------- */}
 
-                        <div
-                          className="
-                            inline-block
-                            bg-slate-800
-                            p-2
-                            rounded-xl
-                            border
-                            border-slate-600
-                          "
-                        >
+                            {message.image_name && (
 
+                              <div
+                                className="
+                                  flex
+                                  items-center
+                                  gap-2
+                                  text-cyan-300
+                                  font-semibold
+                                  mb-3
+                                "
+                              >
 
-                          {/* ------------------------------------------- */}
-                          {/* MEMORY IMAGE */}
-                          {/* ------------------------------------------- */}
+                                <span className="text-xl">
 
-                          <img
+                                  🖼️
 
-                            src={getImageUrl(
-                              message.image_url
+                                </span>
+
+                                <span>
+
+                                  {message.image_name}
+
+                                </span>
+
+                              </div>
+
                             )}
 
-                            alt={
-                              message.image_name ||
-                              "Memory"
-                            }
 
+                            {/* --------------------------------------------- */}
+                            {/* IMAGE CONTAINER */}
+                            {/* --------------------------------------------- */}
 
-                            // -----------------------------------------
-                            // CLICK IMAGE
-                            // -----------------------------------------
+                            <div
+                              className="
+                                inline-block
+                                bg-slate-800
+                                p-2
+                                rounded-xl
+                                border
+                                border-slate-600
+                              "
+                            >
 
-                            onClick={() => {
-
-                              openImage(
-                                message.image_url
-                              );
-
-                            }}
-
-
-                            // -----------------------------------------
-                            // IMAGE LOADED
-                            // -----------------------------------------
-
-                            onLoad={() => {
-
-                              console.log(
-                                "IMAGE LOADED SUCCESSFULLY:"
-                              );
-
-                              console.log(
-                                getImageUrl(
+                              <img
+                                src={getImageUrl(
                                   message.image_url
-                                )
-                              );
+                                )}
+                                alt={
+                                  message.image_name ||
+                                  "Memory"
+                                }
+                                onClick={() => {
+                                  openImage(
+                                    message.image_url
+                                  );
+                                }}
+                                className="
+                                  block
+                                  w-auto
+                                  max-w-full
+                                  max-h-[500px]
+                                  h-auto
+                                  rounded-lg
+                                  object-contain
+                                  cursor-pointer
+                                  hover:opacity-90
+                                  transition
+                                "
+                              />
 
-                            }}
-
-
-                            // -----------------------------------------
-                            // IMAGE ERROR
-                            // -----------------------------------------
-
-                            onError={(event) => {
-
-                              console.error(
-                                "IMAGE COULD NOT BE LOADED:"
-                              );
-
-                              console.error(
-                                getImageUrl(
-                                  message.image_url
-                                )
-                              );
-
-                              console.error(
-                                event.currentTarget
-                              );
-
-                            }}
+                            </div>
 
 
-                            className="
-                              block
-                              w-auto
-                              max-w-full
-                              max-h-[500px]
-                              h-auto
-                              rounded-lg
-                              object-contain
-                              cursor-pointer
-                              hover:opacity-90
-                              transition
-                            "
+                            {/* --------------------------------------------- */}
+                            {/* CLICK MESSAGE */}
+                            {/* --------------------------------------------- */}
 
-                          />
+                            <p
+                              className="
+                                text-xs
+                                text-slate-400
+                                mt-2
+                              "
+                            >
 
-                        </div>
+                              Click the image to open it in full size.
 
+                            </p>
 
-                        {/* --------------------------------------------- */}
-                        {/* CLICK MESSAGE */}
-                        {/* --------------------------------------------- */}
+                          </>
 
-                        <p
-                          className="
-                            text-xs
-                            text-slate-400
-                            mt-2
-                          "
-                        >
-
-                          Click the image to open it in full size.
-
-                        </p>
+                        )}
 
                       </div>
 

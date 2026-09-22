@@ -60,8 +60,13 @@ export default function MemoryModal({
 
     setPhoto(selectedFile);
 
+    if (selectedFile && !photoName.trim()) {
+      const cleanName = selectedFile.name.replace(/\.[^/.]+$/, "");
+      setPhotoName(cleanName);
+    }
+
     console.log(
-      "Selected photo:",
+      "Selected file:",
       selectedFile
     );
   }
@@ -217,7 +222,7 @@ export default function MemoryModal({
 
 
           {/* =================================================
-              PHOTO
+              PHOTO OR DOCUMENT
           ================================================= */}
 
           {!editingMemory && (
@@ -226,16 +231,16 @@ export default function MemoryModal({
 
               <label className="block text-white mt-5 mb-2">
 
-                📷 Photo
+                📷 Photo or 📄 Document (PDF)
 
               </label>
 
 
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/jpg,image/webp"
+                accept="image/jpeg,image/png,image/jpg,image/webp,application/pdf,.pdf"
                 onChange={handlePhotoChange}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-cyan-600 file:text-white hover:file:bg-cyan-500 cursor-pointer"
               />
 
 
@@ -243,14 +248,14 @@ export default function MemoryModal({
 
               {photo && (
 
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2">
 
-                  <p className="text-green-400 text-sm">
+                  <span className="text-xl">
+                    {photo.name.toLowerCase().endsWith(".pdf") ? "📄" : "🖼️"}
+                  </span>
 
-                    ✓ Selected:
-                    {" "}
-                    {photo.name}
-
+                  <p className="text-green-400 text-sm font-medium truncate">
+                    ✓ Selected: {photo.name}
                   </p>
 
                 </div>
@@ -259,19 +264,19 @@ export default function MemoryModal({
 
 
               {/* =================================================
-                  PHOTO NAME
+                  PHOTO OR DOCUMENT NAME
               ================================================= */}
 
               <label className="block text-white mt-5 mb-2">
 
-                Photo Name
+                Name / Title
 
               </label>
 
 
               <input
                 type="text"
-                placeholder="Example: Prithiv"
+                placeholder="Example: Internship Offer Letter or College ID"
                 value={photoName}
                 onChange={(e) =>
                   setPhotoName(e.target.value)

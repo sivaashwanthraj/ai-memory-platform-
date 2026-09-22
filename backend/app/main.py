@@ -84,13 +84,16 @@ async def serve_memory_image_by_filename(filename: str):
                 header, b64_content = memory.image_data.split(",", 1)
                 media_type = header.split(";")[0].replace("data:", "")
                 image_bytes = base64.b64decode(b64_content)
+                resp_headers = {"Cache-Control": "public, max-age=31536000"}
+                if media_type == "application/pdf" or filename.lower().endswith(".pdf"):
+                    resp_headers["Content-Disposition"] = f'inline; filename="{filename}"'
                 return Response(
                     content=image_bytes,
                     media_type=media_type,
-                    headers={"Cache-Control": "public, max-age=31536000"},
+                    headers=resp_headers,
                 )
     except Exception as e:
-        print("Error serving image from DB fallback:", repr(e))
+        print("Error serving image/PDF from DB fallback:", repr(e))
 
     return Response(
         content='{"detail":"Not Found"}',
