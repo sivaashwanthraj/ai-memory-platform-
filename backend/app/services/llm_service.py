@@ -39,7 +39,12 @@ class LLMService:
                         },
                     )
                     data = res.json()
-                    return data["choices"][0]["message"]["content"]
+                    if res.status_code != 200:
+                        err_msg = data.get("error", {}).get("message", res.text)
+                        return f"Groq API Error ({res.status_code}): {err_msg}"
+                    if "choices" in data and len(data["choices"]) > 0:
+                        return data["choices"][0]["message"]["content"]
+                    return "No response generated from LLM."
             except Exception as e:
                 return f"Groq LLM Error: {str(e)}"
 
